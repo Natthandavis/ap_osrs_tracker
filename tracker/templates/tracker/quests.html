@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h2>Quests</h2>
+    </div>
+    <div class="panel-body">
+        <form method="post" class="form-row">
+            {% csrf_token %}
+            {{ form.name }}
+            <button class="btn" type="submit">Add Quest</button>
+        </form>
+        <div class="card-list">
+            {% for quest in quests %}
+                <div class="card">
+                    <div class="card-top">
+                        <img class="icon-24" src="{% static 'icons/quest.svg' %}" alt="Quest">
+                        <div>
+                            <div class="card-title">{{ quest.name }}</div>
+                            <div class="card-sub">Status: {{ quest.get_status_display }}</div>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <form method="post" action="{% url 'set_active' quest.id %}">
+                            {% csrf_token %}
+                            <button class="btn" type="submit">Set Active</button>
+                        </form>
+                        <form method="post" action="{% url 'complete_quest' quest.id %}">
+                            {% csrf_token %}
+                            <button class="btn secondary" type="submit">Mark Complete</button>
+                        </form>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="muted">No quests yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
