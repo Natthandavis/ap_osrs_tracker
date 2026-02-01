@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .forms import PresetForm, QuestForm, SettingsForm
 from .models import EarnPreset, Entry, Quest
+from .signals import ensure_user_defaults
 from .services import (
     SPEND_COSTS,
     balance,
@@ -26,6 +27,7 @@ def get_default_user():
     if created:
         user.set_unusable_password()
         user.save(update_fields=["password"])
+    ensure_user_defaults(user)
     return user
 
 

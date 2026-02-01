@@ -22,15 +22,12 @@ DEFAULT_PRESETS = [
 ]
 
 
-@receiver(post_save, sender=User)
-def create_user_defaults(sender, instance, created, **kwargs):
-    if not created:
-        return
-    UserSettings.objects.get_or_create(user=instance)
-    if not EarnPreset.objects.filter(user=instance).exists():
+def ensure_user_defaults(user):
+    UserSettings.objects.get_or_create(user=user)
+    if not EarnPreset.objects.filter(user=user).exists():
         presets = [
             EarnPreset(
-                user=instance,
+                user=user,
                 label=label,
                 category=category,
                 ap=ap,
@@ -40,3 +37,10 @@ def create_user_defaults(sender, instance, created, **kwargs):
             for label, category, ap, icon_key, sort_order in DEFAULT_PRESETS
         ]
         EarnPreset.objects.bulk_create(presets)
+
+
+@receiver(post_save, sender=User)
+def create_user_defaults(sender, instance, created, **kwargs):
+    if not created:
+        return
+    ensure_user_defaults(instance)
