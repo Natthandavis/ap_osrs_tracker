@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h2>Earn Presets</h2>
+    </div>
+    <div class="panel-body">
+        <form method="post" class="form-grid">
+            {% csrf_token %}
+            {{ form.label }}
+            {{ form.category }}
+            {{ form.ap }}
+            {{ form.icon_key }}
+            <button class="btn" type="submit">Create Preset</button>
+        </form>
+        <div class="card-list">
+            {% for preset in presets %}
+                <div class="card">
+                    <div class="card-top">
+                        <img class="icon-24" src="{% static 'icons/' %}{{ preset.icon_key|default:'default.svg' }}" alt="Preset">
+                        <div>
+                            <div class="card-title">{{ preset.label }}</div>
+                            <div class="card-sub">{{ preset.category }} • {{ preset.ap }} AP</div>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <form method="post" action="{% url 'toggle_preset' preset.id %}">
+                            {% csrf_token %}
+                            <button class="btn" type="submit">{% if preset.is_active %}Disable{% else %}Enable{% endif %}</button>
+                        </form>
+                        <form method="post" action="{% url 'move_preset' preset.id 'up' %}">
+                            {% csrf_token %}
+                            <button class="btn secondary" type="submit">Move Up</button>
+                        </form>
+                        <form method="post" action="{% url 'move_preset' preset.id 'down' %}">
+                            {% csrf_token %}
+                            <button class="btn secondary" type="submit">Move Down</button>
+                        </form>
+                        <form method="post" action="{% url 'delete_preset' preset.id %}">
+                            {% csrf_token %}
+                            <button class="btn danger" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="muted">No presets yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
