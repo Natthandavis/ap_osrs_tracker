@@ -1,10 +1,9 @@
 from django.contrib import messages
-from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import PresetForm, QuestForm, SettingsForm, SignupForm
+from .forms import PresetForm, QuestForm, SettingsForm
 from .models import EarnPreset, Entry, Quest
 from .services import (
     SPEND_COSTS,
@@ -21,24 +20,17 @@ from .services import (
 )
 
 
-def signup(request):
-    if request.user.is_authenticated:
-        return redirect("dashboard")
-    if request.method == "POST":
-        form = SignupForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, "Welcome to AP → OSRS Tracker.")
-            return redirect("dashboard")
-    else:
-        form = SignupForm()
-    return render(request, "registration/signup.html", {"form": form})
+def get_default_user():
+    User = get_user_model()
+    user, created = User.objects.get_or_create(username="default")
+    if created:
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+    return user
 
 
-@login_required
 def dashboard(request):
-    user = request.user
+    user = get_default_user()
     active_quest = get_active_quest(user)
     presets = EarnPreset.objects.filter(user=user, is_active=True).order_by("sort_order", "label")
     entries = Entry.objects.filter(user=user).select_related("quest")[:50]
@@ -90,50 +82,47 @@ def dashboard(request):
     return render(request, "tracker/dashboard.html", context)
 
 
-@login_required
 def earn_preset(request, preset_id):
     if request.method != "POST":
         return redirect("dashboard")
     try:
-        earn_from_preset(request.user, preset_id)
+        earn_from_preset(get_default_user(), preset_id)
         messages.success(request, "AP earned.")
     except ValueError as exc:
         messages.error(request, str(exc))
     return redirect("dashboard")
 
 
-@login_required
 def spend(request, cost):
     if request.method != "POST":
         return redirect("dashboard")
     try:
-        spend_ap(request.user, int(cost))
+        spend_ap(get_default_user(), int(cost))
         messages.success(request, "Quest session logged.")
     except ValueError as exc:
         messages.error(request, str(exc))
     return redirect("dashboard")
 
 
-@login_required
 def undo_spend(request):
     if request.method != "POST":
         return redirect("dashboard")
     try:
-        undo_last_spend(request.user)
+        undo_last_spend(get_default_user())
         messages.success(request, "Last spend entry removed.")
     except ValueError as exc:
         messages.error(request, str(exc))
     return redirect("dashboard")
 
 
-@login_required
 def quests(request):
-    quests_qs = Quest.objects.filter(user=request.user).order_by("name")
+    user = get_default_user()
+    quests_qs = Quest.objects.filter(user=user).order_by("name")
     if request.method == "POST":
         form = QuestForm(request.POST)
         if form.is_valid():
             quest = form.save(commit=False)
-            quest.user = request.user
+            quest.user = user
             try:
                 quest.save()
                 messages.success(request, "Quest added.")
@@ -145,49 +134,46 @@ def quests(request):
     return render(request, "tracker/quests.html", {"quests": quests_qs, "form": form})
 
 
-@login_required
 def set_active(request, quest_id):
     if request.method != "POST":
         return redirect("dashboard")
     try:
-        set_active_quest(request.user, quest_id)
+        set_active_quest(get_default_user(), quest_id)
         messages.success(request, "Active quest updated.")
     except ValueError as exc:
         messages.error(request, str(exc))
     return redirect("dashboard")
 
 
-@login_required
 def complete_quest(request, quest_id):
     if request.method != "POST":
         return redirect("dashboard")
     try:
-        mark_quest_complete(request.user, quest_id)
+        mark_quest_complete(get_default_user(), quest_id)
         messages.success(request, "Quest marked complete.")
     except ValueError as exc:
         messages.error(request, str(exc))
     return redirect("dashboard")
 
 
-@login_required
 def update_notes(request, quest_id):
     if request.method != "POST":
         return redirect("dashboard")
-    quest = get_object_or_404(Quest, user=request.user, id=quest_id)
+    quest = get_object_or_404(Quest, user=get_default_user(), id=quest_id)
     quest.notes = request.POST.get("notes", "")
     quest.save(update_fields=["notes", "updated_at"])
     messages.success(request, "Quest notes updated.")
     return redirect("dashboard")
 
 
-@login_required
 def presets(request):
-    presets_qs = EarnPreset.objects.filter(user=request.user).order_by("sort_order", "label")
+    user = get_default_user()
+    presets_qs = EarnPreset.objects.filter(user=user).order_by("sort_order", "label")
     if request.method == "POST":
         form = PresetForm(request.POST)
         if form.is_valid():
             preset = form.save(commit=False)
-            preset.user = request.user
+            preset.user = user
             preset.save()
             messages.success(request, "Preset created.")
             return redirect("presets")
@@ -196,35 +182,33 @@ def presets(request):
     return render(request, "tracker/presets.html", {"presets": presets_qs, "form": form})
 
 
-@login_required
 def toggle_preset(request, preset_id):
     if request.method != "POST":
         return redirect("presets")
-    preset = get_object_or_404(EarnPreset, user=request.user, id=preset_id)
+    preset = get_object_or_404(EarnPreset, user=get_default_user(), id=preset_id)
     preset.is_active = not preset.is_active
     preset.save(update_fields=["is_active", "updated_at"])
     messages.success(request, "Preset updated.")
     return redirect("presets")
 
 
-@login_required
 def delete_preset(request, preset_id):
     if request.method != "POST":
         return redirect("presets")
-    preset = get_object_or_404(EarnPreset, user=request.user, id=preset_id)
+    preset = get_object_or_404(EarnPreset, user=get_default_user(), id=preset_id)
     preset.delete()
     messages.success(request, "Preset deleted.")
     return redirect("presets")
 
 
-@login_required
 def move_preset(request, preset_id, direction):
     if request.method != "POST":
         return redirect("presets")
-    preset = get_object_or_404(EarnPreset, user=request.user, id=preset_id)
+    user = get_default_user()
+    preset = get_object_or_404(EarnPreset, user=user, id=preset_id)
     offset = -1 if direction == "up" else 1
     swap = (
-        EarnPreset.objects.filter(user=request.user, sort_order=preset.sort_order + offset)
+        EarnPreset.objects.filter(user=user, sort_order=preset.sort_order + offset)
         .order_by("sort_order")
         .first()
     )
@@ -235,9 +219,8 @@ def move_preset(request, preset_id, direction):
     return redirect("presets")
 
 
-@login_required
 def settings_view(request):
-    settings_obj = request.user.usersettings
+    settings_obj = get_default_user().usersettings
     if request.method == "POST":
         form = SettingsForm(request.POST, instance=settings_obj)
         if form.is_valid():
