@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AP → OSRS Tracker</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="dark">
+    <header class="topbar">
+        <div class="brand">AP → OSRS Tracker</div>
+        <nav class="nav">
+            <a href="{% url 'dashboard' %}">Dashboard</a>
+            <a href="{% url 'quests' %}">Quests</a>
+            <a href="{% url 'presets' %}">Presets</a>
+            <a href="{% url 'settings' %}">Settings</a>
+        </nav>
+    </header>
+    <main class="container">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="message {{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

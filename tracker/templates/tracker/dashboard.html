@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="grid">
+    <section class="tile-group">
+        <div class="tile stat">
+            <img class="icon-32" src="{% static 'icons/ap.svg' %}" alt="AP">
+            <div>
+                <div class="tile-label">AP Balance</div>
+                <div class="tile-value">{{ balance }}</div>
+            </div>
+        </div>
+        <div class="tile stat">
+            <img class="icon-32" src="{% static 'icons/earn.svg' %}" alt="Earned">
+            <div>
+                <div class="tile-label">Today Earned</div>
+                <div class="tile-value">{{ today_earned }}</div>
+            </div>
+        </div>
+        <div class="tile stat">
+            <img class="icon-32" src="{% static 'icons/spend.svg' %}" alt="Spent">
+            <div>
+                <div class="tile-label">Today Spent</div>
+                <div class="tile-value">{{ today_spent }}</div>
+            </div>
+        </div>
+        <div class="tile stat">
+            <img class="icon-32" src="{% static 'icons/spending_log.svg' %}" alt="Net">
+            <div>
+                <div class="tile-label">Today Net</div>
+                <div class="tile-value">{{ today_net }}</div>
+            </div>
+        </div>
+        <div class="tile stat">
+            {% if unlocked_today %}
+                <img class="icon-32" src="{% static 'icons/unlocked.svg' %}" alt="Unlocked">
+                <div>
+                    <div class="tile-label">OSRS</div>
+                    <div class="tile-value">Unlocked</div>
+                </div>
+            {% else %}
+                <img class="icon-32" src="{% static 'icons/locked.svg' %}" alt="Locked">
+                <div>
+                    <div class="tile-label">OSRS</div>
+                    <div class="tile-value">Locked</div>
+                </div>
+            {% endif %}
+        </div>
+        <div class="tile stat">
+            <img class="icon-32" src="{% static 'icons/quest.svg' %}" alt="Quests">
+            <div>
+                <div class="tile-label">Quest Progress</div>
+                <div class="tile-value">{{ completed_quests }} / {{ total_quests }}</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Quest Progress</h2>
+        </div>
+        <div class="panel-body">
+            <form class="form-row" method="post" action="{% url 'set_active' 0 %}" data-action-template="{% url 'set_active' 0 %}">
+                {% csrf_token %}
+                <select name="quest_id" id="quest-select">
+                    <option value="">Select quest</option>
+                    {% for quest in quests %}
+                        <option value="{{ quest.id }}" {% if active_quest and quest.id == active_quest.id %}selected{% endif %}>
+                            {{ quest.name }}{% if quest.status == 'completed' %} (completed){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button class="btn" type="submit">Set Active</button>
+            </form>
+
+            {% if active_quest %}
+                <div class="quest-meta">
+                    <div class="quest-title">Active: {{ active_quest.name }}</div>
+                    <div class="quest-minutes">Minutes logged: {{ active_quest.minutes_logged }}</div>
+                </div>
+                <form method="post" action="{% url 'update_notes' active_quest.id %}">
+                    {% csrf_token %}
+                    <textarea name="notes" rows="3" placeholder="Quest notes">{{ active_quest.notes }}</textarea>
+                    <button class="btn" type="submit">Save Notes</button>
+                </form>
+                <div class="button-row">
+                    <form method="post" action="{% url 'complete_quest' active_quest.id %}">
+                        {% csrf_token %}
+                        <button class="btn secondary" type="submit">Mark Complete</button>
+                    </form>
+                    <form method="post" action="{% url 'undo_spend' %}">
+                        {% csrf_token %}
+                        <button class="btn secondary" type="submit">Undo Last Spend</button>
+                    </form>
+                </div>
+            {% else %}
+                <div class="muted">Select an active quest to start tracking minutes.</div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Quick Earn</h2>
+        </div>
+        <div class="panel-body">
+            <div class="tile-grid">
+                {% for preset in presets %}
+                    <form class="tile-button" method="post" action="{% url 'earn_preset' preset.id %}">
+                        {% csrf_token %}
+                        <img class="icon-32" src="{% static 'icons/' %}{{ preset.icon_key|default:'default.svg' }}" alt="{{ preset.label }}">
+                        <div class="tile-value">+{{ preset.ap }}</div>
+                        <div class="tile-label">{{ preset.label }}</div>
+                    </form>
+                {% empty %}
+                    <div class="muted">No active presets yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Quest Session</h2>
+        </div>
+        <div class="panel-body">
+            <div class="tile-grid">
+                {% for option in spend_options %}
+                    <form class="tile-button" method="post" action="{% url 'spend' option.cost %}">
+                        {% csrf_token %}
+                        <img class="icon-32" src="{% static 'icons/osrs_' %}{{ option.minutes }}.svg" alt="Spend">
+                        <div class="tile-value">-{{ option.cost }} AP</div>
+                        <div class="tile-label">{{ option.minutes }} minutes</div>
+                        {% if not option.enabled %}
+                            <div class="tile-note">{{ option.reason }}</div>
+                        {% endif %}
+                        <button class="btn" type="submit" {% if not option.enabled %}disabled{% endif %}>Spend</button>
+                    </form>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Activity Log</h2>
+        </div>
+        <div class="panel-body">
+            <div class="card-list">
+                {% for entry in entries %}
+                    <div class="card">
+                        <div class="card-top">
+                            <img class="icon-24" src="{% static 'icons/' %}{% if entry.kind == 'spend' %}spend.svg{% elif entry.kind == 'quest_complete' %}quest_complete.svg{% else %}earn.svg{% endif %}" alt="entry">
+                            <div>
+                                <div class="card-title">{{ entry.label }}</div>
+                                <div class="card-sub">{{ entry.timestamp|date:'M d, H:i' }}</div>
+                            </div>
+                            <div class="card-ap {% if entry.kind == 'spend' %}neg{% else %}pos{% endif %}">
+                                {% if entry.kind == 'spend' %}-{% else %}+{% endif %}{{ entry.ap }} AP
+                            </div>
+                        </div>
+                        {% if entry.quest %}
+                            <div class="card-sub muted">Quest: {{ entry.quest.name }}</div>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <div class="muted">No activity yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    const questSelect = document.getElementById('quest-select');
+    const form = document.querySelector('form[data-action-template]');
+    if (questSelect && form) {
+        const baseAction = form.getAttribute('data-action-template');
+        form.addEventListener('submit', (event) => {
+            if (!questSelect.value) {
+                event.preventDefault();
+                return;
+            }
+            form.action = baseAction.replace('/0/', `/${questSelect.value}/`);
+        });
+    }
+</script>
+{% endblock %}

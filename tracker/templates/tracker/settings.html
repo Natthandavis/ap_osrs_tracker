@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <h2>Settings</h2>
+    </div>
+    <div class="panel-body">
+        <form method="post" class="form-grid">
+            {% csrf_token %}
+            <label>
+                {{ form.saturday_lock_enabled }} Saturday lock enabled
+            </label>
+            <label>
+                Saturday unlock time
+                {{ form.saturday_unlock_time }}
+            </label>
+            <label>
+                Daily earn cap
+                {{ form.daily_earn_cap }}
+            </label>
+            <label>
+                Unlock net AP today
+                {{ form.unlock_net_ap_today }}
+            </label>
+            <button class="btn" type="submit">Save Settings</button>
+        </form>
+    </div>
+</section>
+{% endblock %}
