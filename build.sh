@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -o errexit
 
-python manage.py migrate
-python manage.py collectstatic --noinput
+DJANGO_SETTINGS_MODULE=ap_osrs_tracker.settings.prod python manage.py migrate
+DJANGO_SETTINGS_MODULE=ap_osrs_tracker.settings.prod python manage.py collectstatic --noinput
